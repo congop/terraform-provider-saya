@@ -1,0 +1,13 @@
+{
+    "cSpell.words": [
+        "Debugf",
+        "dummyrepo",
+        "Saya",
+        "tfsdk",
+        "Tracef",
+        "Warnf",
+        "Wrapf"
+    ],
+
+    "go.coverOnSingleTest": true
+}
