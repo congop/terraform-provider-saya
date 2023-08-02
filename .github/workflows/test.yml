@@ -84,7 +84,8 @@ jobs:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
-      - run: go run githubtools/main/main.go
+      - run: go build -o githubtools/main/saya-installer githubtools/main/main.go
+      - run: sudo githubtools/main/saya-installer
       - env:
           TF_ACC: "1"
           TF_LOG: "trace"

@@ -32,6 +32,7 @@ bin/
 *.iml
 .tmp/
 terraform-provider-saya
+githubtools/main/saya-installer
 
 # Test exclusions
 !command/test-fixtures/**/*.tfstate
