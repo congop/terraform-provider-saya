@@ -55,7 +55,7 @@ func Pull(ctx context.Context, req PullRequest) (*PullResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd, err := NewSayaCmdPull(req.Exe)
+	cmd, err := NewCmdImgPull(req.Exe)
 	if err != nil {
 		return nil, err
 	}

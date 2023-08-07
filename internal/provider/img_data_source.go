@@ -136,11 +136,7 @@ func (d *ImageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		OsVariant: data.OsVariant.ValueString(),
 		Sha256:    data.Sha256.ValueString(),
 
-		Exe:        d.sayaExeCtx.SayaExe,
-		Config:     d.sayaExeCtx.Config,
-		Forge:      d.sayaExeCtx.Forge,
-		LicenseKey: d.sayaExeCtx.LicenseKey,
-		LogLevel:   d.sayaExeCtx.LogLevel,
+		RequestSayaCtx: d.sayaExeCtx.ToRequestSayaCtx(),
 	}
 
 	switch lsResList, err := saya.Ls(ctx, lsReq); {

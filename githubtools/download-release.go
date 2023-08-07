@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -99,9 +100,9 @@ func extractSayaBinary(releaseZipPath string, binInstallDir string, tmpDir strin
 				}
 				defer rc.Close()
 
-				sayaExeFile, err := os.CreateTemp(tmpDir, "saya-exe-*")
+				sayaExeFile, err := os.Create(filepath.Join(tmpDir, "saya"))
 				if err != nil {
-					return "", errors.Wrapf(err, "extractSayaBinary -- fail to create temp file to extract binary: err=%s", err)
+					return "", errors.Wrapf(err, "extractSayaBinary -- fail to create file to extract binary: err=%s", err)
 				}
 
 				defer sayaExeFile.Close()
@@ -123,55 +124,69 @@ func extractSayaBinary(releaseZipPath string, binInstallDir string, tmpDir strin
 	if sayaExeFileExtractedPath == "" {
 		return errors.Errorf("extractSayaBinary -- saya binary not found: entry-path=xxx/bin/saya , entries=%q", entries)
 	}
-	finalDestination := filepath.Join(binInstallDir, "saya")
 
 	// "rwxrwxrwx"
 	// sample of terraform: -rwxr-xr-x 1 root root 65110016 Jul 26 20:16 /usr/bin/terraform*
 
-	err = func() error {
-		srcFile, err := os.Open(sayaExeFileExtractedPath)
-		if err != nil {
-			return errors.Wrapf(err,
-				"extractSayBinary -- failed to open extracted saya exe: path=%s",
-				sayaExeFileExtractedPath)
-		}
-		defer srcFile.Close()
-		dstFile, err := os.OpenFile(finalDestination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
-		if err != nil {
-			return errors.Wrapf(err,
-				"extractSayBinary -- failed to open saya exe final destination: dst=%s",
-				finalDestination)
-		}
-		defer dstFile.Close()
-		if _, err := io.Copy(dstFile, srcFile); err != nil {
-			return errors.Wrapf(err,
-				"extractSayBinary -- failed to copy saya exe to destination: dst=%s src=%s",
-				finalDestination, sayaExeFileExtractedPath)
-		}
-		return nil
-	}()
+	// finalDestination := filepath.Join(binInstallDir, "saya")
+	// err = func() error {
+	// 	srcFile, err := os.Open(sayaExeFileExtractedPath)
+	// 	if err != nil {
+	// 		return errors.Wrapf(err,
+	// 			"extractSayBinary -- failed to open extracted saya exe: path=%s",
+	// 			sayaExeFileExtractedPath)
+	// 	}
+	// 	defer srcFile.Close()
+	// 	dstFile, err := os.OpenFile(finalDestination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	// 	if err != nil {
+	// 		return errors.Wrapf(err,
+	// 			"extractSayBinary -- failed to open saya exe final destination: dst=%s",
+	// 			finalDestination)
+	// 	}
+	// 	defer dstFile.Close()
+	// 	if _, err := io.Copy(dstFile, srcFile); err != nil {
+	// 		return errors.Wrapf(err,
+	// 			"extractSayBinary -- failed to copy saya exe to destination: dst=%s src=%s",
+	// 			finalDestination, sayaExeFileExtractedPath)
+	// 	}
+	// 	return nil
+	// }()
 
-	if err != nil {
+	// if err != nil {
+	// 	return err
+	// }
+
+	// if err := os.Chmod(finalDestination, 0755); err != nil {
+	// 	return errors.Wrapf(err,
+	// 		"extractSayBinary -- fail to file mode to 0755: finalDestination=%s",
+	// 		finalDestination)
+	// }
+	if err := runSayaSetupVirtualBox(sayaExeFileExtractedPath); err != nil {
 		return err
 	}
+	return nil
+}
 
-	if err := os.Chmod(finalDestination, 0755); err != nil {
+func runSayaSetupVirtualBox(sayaExeFileExtractedPath string) error {
+	if err := os.Chmod(sayaExeFileExtractedPath, 0755); err != nil {
 		return errors.Wrapf(err,
-			"extractSayBinary -- fail to file mode to 0755: finalDestination=%s",
-			finalDestination)
+			"runSayaSetupVirtualBox -- fail to file mode to 0755: sayaExeFileExtractedPath=%s err=%v",
+			sayaExeFileExtractedPath, err)
 	}
-
-	// if err := os.Chmod(sayaExeFileExtractedPath, 0755); err != nil {
-	// 	return errors.Wrapf(err,
-	// 		"extractSayBinary -- fail to file mode to 0755: sayaExeFileExtractedPath=%s",
-	// 		sayaExeFileExtractedPath)
-	// }
-
-	// if err := os.Rename(sayaExeFileExtractedPath, finalDestination); err != nil {
-	// 	return errors.Wrapf(err,
-	// 		"extractSayBinary -- fail to move extracted saya exe to final destination: dst=%s src=%s",
-	// 		finalDestination, sayaExeFileExtractedPath)
-	// }
+	cmd := exec.Command("sudo", sayaExeFileExtractedPath, "setup",
+		"--compute-type", "localhost", "--target", "localhost",
+		"--want-compute-type", "virtualbox",
+		"--target-user", "runner",
+		"--log-level", "info",
+	)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err,
+			"runSayaSetupVirtualBox -- fail to run setup: sayaExeFileExtractedPath=%s err=%v",
+			sayaExeFileExtractedPath, err)
+	}
 	return nil
 }
 

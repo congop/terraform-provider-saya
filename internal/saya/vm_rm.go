@@ -18,37 +18,34 @@ import (
 	"context"
 
 	"github.com/congop/terraform-provider-saya/internal/log"
+	"github.com/congop/terraform-provider-saya/internal/stringutil"
+	"github.com/pkg/errors"
 )
 
-type ImageDeleteRequest struct {
-	Name     string
-	ImgType  string
-	Platform string
+type VmRmRequest struct {
+	Id   string
+	Name string
 
 	RequestSayaCtx
 }
 
-func ImageRm(ctx context.Context, req ImageDeleteRequest) error {
-	log.Debugf(ctx, "ImageRm -- requested: request=%#v", req)
-	ref, err := ParseReference(req.Name)
-	if err != nil {
-		return err
-	}
-	cmd, err := NewCmdImgRm(req.Exe, req.RequestSayaCtx)
-	if err != nil {
-		return err
-	}
-	cmd.WithRef(ref.Normalized())
+type VmRmResult struct {
+	Id string
+}
 
-	cmd.appendFlagIfNotBlank("--img-type", req.ImgType)
-	cmd.appendFlagIfNotBlank("--platform", req.Platform)
-
+func VmRm(ctx context.Context, req VmRmRequest) (*VmRmResult, error) {
+	cmd, err := NewCmdVmRm(req.Id, req.RequestSayaCtx)
+	if err != nil {
+		return nil, err
+	}
 	outcome, err := cmd.Exec(ctx)
 	if err != nil {
-		return err
+		return nil, errors.Wrapf(err,
+			"VmRm --  fail to execute saya rm command: "+
+				"\n\treq=%#v \n\terr=%s  ",
+			req, stringutil.IndentN(2, err.Error()))
+
 	}
-
-	log.Debugf(ctx, "ImageRm -- outcome of saya image rm: outcome=%#v", outcome)
-
-	return nil
+	log.Debugf(ctx, "VmRun - cmd exec outcome: outcome=%#v", outcome)
+	return &VmRmResult{Id: req.Id}, nil
 }

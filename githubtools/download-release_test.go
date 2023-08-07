@@ -21,8 +21,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/congop/execstub"
+	"github.com/congop/execstub/pkg/comproto"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 )
@@ -39,10 +42,24 @@ func getTestReleaseResp(t *testing.T) []byte {
 }
 
 func TestInstallSayaReleaseBin(t *testing.T) {
+	stubber := execstub.NewExecStubber()
+	installCmd := ""
+	runNopExit0 := func(sreq comproto.StubRequest) *comproto.ExecOutcome {
+		installCmd = strings.Join(sreq.Args, " ")
+		return &comproto.ExecOutcome{Key: sreq.Key, Stdout: "", ExitCode: 0}
+	}
+
+	defer stubber.CleanUp()
+	settings := comproto.Settings{
+		Mode:     comproto.StubbingModeDyna,
+		ExecType: comproto.ExecTypeExe,
+	}
+	_, err := stubber.WhenExecDoStubFunc(runNopExit0, "sudo", settings)
+	require.NoErrorf(t, err, "fail to stub sudo command")
+
 	type args struct {
-		releaseName    string
-		binInstallDir  string
-		alreadyInstall bool
+		releaseName   string
+		binInstallDir string
 	}
 	tests := []struct {
 		name    string
@@ -52,11 +69,6 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 		{
 			name:    "should-install-saya-bin",
 			args:    args{releaseName: "", binInstallDir: t.TempDir()},
-			wantErr: false,
-		},
-		{
-			name:    "should-override-old-installation",
-			args:    args{releaseName: "", binInstallDir: t.TempDir(), alreadyInstall: true},
 			wantErr: false,
 		},
 	}
@@ -87,7 +99,18 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 				t.Errorf("InstallSayaReleaseBin() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil {
-				theSayaExeInstalled(t, tt.args.binInstallDir)
+				expectedCmdParts := []string{
+					"/saya", "setup",
+					"--compute-type", "localhost", "--target", "localhost",
+					"--want-compute-type", "virtualbox",
+					"--target-user", "runner",
+					"--log-level", "info",
+				}
+				expectedCmdSuffix := strings.Join(expectedCmdParts, " ")
+				require.Contains(t, installCmd, expectedCmdSuffix,
+					"should have been actual install cmd suffix: \n\tinstall-cmd=%s \n\texpected-cmd-suffix=%s",
+					installCmd, expectedCmdSuffix)
+				//theSayaExeInstalled(t, tt.args.binInstallDir)
 			}
 		})
 	}
@@ -96,22 +119,6 @@ func givenSayaExeAlreadyInstalled(t *testing.T, binInstallDir string) {
 	sayaExePath := filepath.Join(binInstallDir, "saya")
 	err := os.WriteFile(sayaExePath, []byte("i-am-saya-exe-already-there-but-old"), 0600)
 	require.NoErrorf(t, err, "fail to ensure that saya is install: err=%v", err)
-}
-func theSayaExeInstalled(t *testing.T, binInstallDir string) {
-	expectedInstallSayaExePath := filepath.Join(binInstallDir, "saya")
-	data, err := os.ReadFile(expectedInstallSayaExePath)
-	require.NoErrorf(t, err,
-		"could not read saya exe file at expected location: expectedLocation=%s err=%s",
-		expectedInstallSayaExePath, err)
-	require.Equalf(t,
-		fakeSayaExeFileContent, string(data),
-		"exe file content should have match expected")
-	info, _ := os.Stat(expectedInstallSayaExePath)
-
-	maskedExeUserGroupOther := info.Mode().Perm() & 0111
-	require.Equalf(t, uint32(0111), uint32(maskedExeUserGroupOther),
-		"saya exe should be executable for user, usergroup and other: expected=%s expected=%o actual=%o",
-		info.Mode().Perm().String(), 0111, maskedExeUserGroupOther)
 }
 
 const fakeSayaExeFileContent = "#!/bin/bash\n echo 'fake saya cmd'\n exit 1"

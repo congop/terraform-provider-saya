@@ -332,11 +332,7 @@ func (r *ImageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		OsVariant: "",
 		Sha256:    "",
 
-		Exe:        r.sayaExeCtx.SayaExe,
-		Config:     r.sayaExeCtx.Config,
-		Forge:      r.sayaExeCtx.Forge,
-		LicenseKey: r.sayaExeCtx.LicenseKey,
-		LogLevel:   r.sayaExeCtx.LogLevel,
+		RequestSayaCtx: r.sayaExeCtx.ToRequestSayaCtx(),
 	}
 	idStr := data.Id.ValueString()
 	importing := lsReq.Name == ""
@@ -426,11 +422,7 @@ func (r *ImageResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		ImgType:  data.ImgType.ValueString(),
 		Platform: data.Platform.ValueString(),
 
-		Exe:        r.sayaExeCtx.SayaExe,
-		Config:     r.sayaExeCtx.Config,
-		Forge:      r.sayaExeCtx.Forge,
-		LicenseKey: r.sayaExeCtx.LicenseKey,
-		LogLevel:   r.sayaExeCtx.LogLevel,
+		RequestSayaCtx: r.sayaExeCtx.ToRequestSayaCtx(),
 	}
 
 	if err := saya.ImageRm(ctx, delReq); err != nil {
@@ -457,11 +449,7 @@ func (r *ImageResource) ImportState(ctx context.Context, req resource.ImportStat
 		OsVariant: "",
 		Sha256:    "",
 
-		Exe:        r.sayaExeCtx.SayaExe,
-		Config:     r.sayaExeCtx.Config,
-		Forge:      r.sayaExeCtx.Forge,
-		LicenseKey: r.sayaExeCtx.LicenseKey,
-		LogLevel:   r.sayaExeCtx.LogLevel,
+		RequestSayaCtx: r.sayaExeCtx.ToRequestSayaCtx(),
 	}
 
 	switch lsResList, err := saya.Ls(ctx, lsReq); {

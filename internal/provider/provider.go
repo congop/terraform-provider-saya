@@ -54,6 +54,19 @@ type SayaExecutionCtx struct {
 	repos *saya.Repos
 }
 
+func (exeCtx *SayaExecutionCtx) ToRequestSayaCtx() saya.RequestSayaCtx {
+	if exeCtx == nil {
+		return saya.RequestSayaCtx{}
+	}
+	return saya.RequestSayaCtx{
+		Exe:        exeCtx.SayaExe,
+		Config:     exeCtx.Config,
+		Forge:      exeCtx.Forge,
+		LicenseKey: exeCtx.LicenseKey,
+		LogLevel:   exeCtx.LogLevel,
+	}
+}
+
 func (exeCtx *SayaExecutionCtx) setHttpRepo(httpRepo *saya.HttpRepo) {
 	if httpRepo == nil {
 		return
@@ -192,6 +205,7 @@ func (p *SayaProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 func (p *SayaProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewImageResource,
+		NewVmResource,
 	}
 }
 

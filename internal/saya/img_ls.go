@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/congop/terraform-provider-saya/internal/log"
-	"github.com/congop/terraform-provider-saya/internal/opaque"
 )
 
 type LsRequest struct {
@@ -30,15 +29,8 @@ type LsRequest struct {
 	Platform  string
 	OsVariant string
 	Sha256    string
-	// Hash     string
-	// RepoType string
-	// HttpRepo *HttpRepo
 
-	Exe        string        // saya executable command or path
-	Config     string        // saya executable command or path
-	Forge      string        // forge(local image store) location
-	LicenseKey opaque.String // License key
-	LogLevel   string        // log level error|warn|info|debug|trace
+	RequestSayaCtx
 }
 
 type LsResult struct {
@@ -65,18 +57,13 @@ func Ls(ctx context.Context, req LsRequest) ([]LsResult, error) {
 		}
 		refNormalized = ref.Normalized()
 	}
-	cmd, err := NewSayaCmdLs(req.Exe)
+	cmd, err := NewCmdImgLs(req.Exe, req.RequestSayaCtx)
 	if err != nil {
 		return nil, err
 	}
 	if refNormalized != "" {
 		cmd.WithRef(refNormalized)
 	}
-
-	cmd.WithCfgFile(req.Config)
-	cmd.WithForgeLocation(req.Forge)
-	cmd.WithLicenseKey(req.LicenseKey)
-	cmd.WithLogLevel(req.LogLevel)
 
 	// cmd.appendFlagIfNotBlank("--hash", req.Hash)
 	// saya image ls --filter img-type=qcow2 --filter reference='appserver:v1*'
@@ -114,7 +101,7 @@ func Ls(ctx context.Context, req LsRequest) ([]LsResult, error) {
 		return nil, err
 	}
 
-	log.Debugf(ctx, "Ls -- saya image ls execution outcome: outcome=%#v\n", outcome)
+	log.Debugf(ctx, "Ls -- saya image ls execution outcome: outcome=%#v", outcome)
 	metaList, err := ImageTagMetaDataListFromJsonFile(ctx, resultDst)
 	if err != nil {
 		return nil, err

@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.1
 	github.com/containerd/containerd v1.7.3
 	github.com/hashicorp/terraform-plugin-docs v0.16.0
-	github.com/hashicorp/terraform-plugin-framework v1.3.3
+	github.com/hashicorp/terraform-plugin-framework v1.3.4
 	github.com/hashicorp/terraform-plugin-go v0.18.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-testing v1.4.0
@@ -51,6 +51,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.0 // indirect
+	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
@@ -59,6 +60,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.1 // indirect
@@ -90,7 +92,10 @@ require (
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/tools v0.11.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230726155614-23370e0ffb3e // indirect
+	gopkg.in/ini.v1 v1.57.0 // indirect
 	gotest.tools/v3 v3.5.0 // indirect
+	k8s.io/klog/v2 v2.90.1 // indirect
+	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 )
 
 require (
@@ -105,6 +110,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.76
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
+	github.com/congop/execstub v0.0.0-20210519151710-e93c592abc71
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -161,4 +167,5 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/grpc v1.57.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
+	k8s.io/apimachinery v0.27.4
 )

@@ -36,9 +36,11 @@ act-runner-docker-build:
 				docker build -f ./Dockerfile.act-runner -t act_local/runner-ubuntu-22.4 .; \
 			fi
 
-act-runner-docker-clean-img-container:
-	docker container stop act-ci-for-io-patricecongo-spire-CI-io-patricecongo-spire || true
-	docker container rm act-ci-for-io-patricecongo-spire-CI-io-patricecongo-spire || true
+act-runner-docker-rm-vms:
+	docker container stop $$(docker container ls -a --filter "name=act-Tests-Terraform-Provider-Acceptance-Tests*" --filter status=running --format "{{.ID}}") || true
+	docker container rm $$(docker container ls -a --filter "name=act-Tests-Terraform-Provider-Acceptance-Tests*" --filter status=exited --format "{{.ID}}") || true
+
+act-runner-docker-clean-img-container: act-runner-docker-rm-vms
 	docker image rm -f act_local/runner-ubuntu-22.4:latest
 
 act-install-binary:
@@ -51,7 +53,7 @@ act-run-github-actions-job-build:
 	.tmp/bin/act -v --env LC_ALL=C.UTF-8 \
 		--env LANG=C.UTF-8 \
 		--env LC_TIME=C.UTF-8 \
-		--platform ubuntu-22.04=act_local/runner-ubuntu-22.4:v1 \
+		--platform ubuntu-22.04=act_local/runner-ubuntu-22.4 \
 		--container-options "--privileged" \
 		--job test \
 	    --pull=false \

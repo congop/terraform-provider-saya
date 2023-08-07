@@ -22,7 +22,6 @@ import (
 	"github.com/congop/terraform-provider-saya/internal/log"
 	"github.com/congop/terraform-provider-saya/internal/opaque"
 	"github.com/congop/terraform-provider-saya/internal/saya"
-	"github.com/congop/terraform-provider-saya/internal/stubrepo"
 	repos "github.com/congop/terraform-provider-saya/internal/stubrepo"
 	"github.com/stretchr/testify/require"
 )
@@ -60,7 +59,7 @@ func givenUbuntuVxOvaLinuxArmInForge(
 	require.NoErrorf(t, httpRepo.Start(), "fail to start http server")
 	defer func() {
 		if err := httpRepo.Close(); err != nil {
-			log.Errorf(stubrepo.StubLogCtx(), "fail to stop http server: err=%+v ", err)
+			log.Errorf(repos.StubLogCtx(), "fail to stop http server: err=%+v ", err)
 		}
 	}()
 	img, err := repos.GivenImgInRemoteRepo(httpRepo.RegisterDummyImg, specData, true)
@@ -75,7 +74,7 @@ func givenUbuntuVxOvaLinuxArmInForge(
 		Exe:      sayaExe,
 		Forge:    forge,
 	}
-	_, err = saya.Pull(stubrepo.StubLogCtx(), pullReq)
+	_, err = saya.Pull(repos.StubLogCtx(), pullReq)
 	require.NoErrorf(t, err, "fail to pull image into forge")
 	img.Repos = httpRepo.AsRepos()
 	return img
@@ -100,7 +99,7 @@ func givenUbuntuV1OvaLinuxArmInHttpRepo(dummyRepos *repos.RemoteRepos) (*repos.I
 }
 
 func givenImageIsInForgeByPullingFn(
-	t *testing.T, imgIdStr string, repos *repos.RemoteRepos, forge string,
+	t *testing.T, imgIdStr string, remoteRepos *repos.RemoteRepos, forge string,
 ) func() {
 	return func() {
 		sayaExe := sayaExe(t)
@@ -112,20 +111,23 @@ func givenImageIsInForgeByPullingFn(
 			Platform:   imgId.P.PlatformStr(),
 			Hash:       "",
 			RepoType:   "http",
-			HttpRepo:   repos.Http.AsRepos().Http,
+			HttpRepo:   remoteRepos.Http.AsRepos().Http,
 			Exe:        sayaExe,
 			Forge:      forge,
 			Config:     "",
 			LicenseKey: *opaque.NewString(""),
 			LogLevel:   "debug",
 		}
-		t.Logf("in-http repo = %v", repos.Http.RepoContent())
+		t.Logf("in-http repo = %v", remoteRepos.Http.RepoContent())
 
-		_, err = saya.Pull(stubrepo.StubLogCtx(), req)
+		_, err = saya.Pull(repos.StubLogCtx(), req)
 		require.NoErrorf(t, err, "failed to pull")
 
-		res, err := saya.Ls(stubrepo.StubLogCtx(), saya.LsRequest{
-			Forge: forge, Exe: sayaExe})
+		res, err := saya.Ls(repos.StubLogCtx(), saya.LsRequest{
+			RequestSayaCtx: saya.RequestSayaCtx{
+				Forge: forge, Exe: sayaExe,
+			},
+		})
 		t.Logf("ls-results = %#v  \n\terr=%v", res, err)
 	}
 }

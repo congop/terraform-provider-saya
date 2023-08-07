@@ -57,8 +57,20 @@ RUN rm -rf /lib/systemd/user/*
 RUN rm /usr/bin/systemctl
 RUN rm /usr/bin/journalctl
 
+ADD https://github.com/gdraheim/docker-systemctl-replacement/archive/refs/tags/v1.5.7106.tar.gz /tmp
+RUN tar -xf /tmp/v1.5.7106.tar.gz -C /tmp/
 
-USER root
+RUN mkdir -p /docker-systemctl/ && \
+    cp  /tmp/docker-systemctl-*/files/docker/*.py /docker-systemctl/ \
+    && ln -sf /docker-systemctl/systemctl3.py /usr/bin/systemctl \
+    && ln -sf /docker-systemctl/journalctl3.py /usr/bin/journalctl
+#smoke testing that systemctl replacement is in place
+RUN tree /docker-systemctl/
+RUN /docker-systemctl/systemctl3.py --user list-units
+RUN systemctl --user list-units
+
+
+USER runner
 #CMD sleep 1h
 VOLUME ["/sys/fs/cgroup", "/tmp", "/run", "/run/lock"]
 STOPSIGNAL SIGRTMIN+3

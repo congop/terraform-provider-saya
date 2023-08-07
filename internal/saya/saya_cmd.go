@@ -25,6 +25,7 @@ import (
 	stderrors "errors"
 
 	"github.com/congop/terraform-provider-saya/internal/opaque"
+	"github.com/congop/terraform-provider-saya/internal/stringutil"
 	"github.com/pkg/errors"
 )
 
@@ -32,6 +33,13 @@ type SayaCmd struct {
 	exe                  string
 	Args                 CmdArgs
 	ArgsValidationErrors []error
+}
+
+func (sayaCmd *SayaCmd) WithRequestSayaCtx(req RequestSayaCtx) {
+	sayaCmd.WithCfgFile(req.Config)
+	sayaCmd.WithForgeLocation(req.Forge)
+	sayaCmd.WithLicenseKey(req.LicenseKey)
+	sayaCmd.WithLogLevel(req.LogLevel)
 }
 
 func (sayaCmd *SayaCmd) WithCfgFile(cfg string) {
@@ -141,98 +149,14 @@ func (sayaCmd SayaCmd) Exec(ctx context.Context) (ExecOutcome, error) {
 	}
 	if err != nil {
 		wd, _ := os.Getwd()
-		return outcome, errors.Wrapf(err, "SayaCmd.Exec -- fail to execute command:"+
-			"\n\tcommand=%s \n\targ=%q \n\tpwd=%s \n\tcause=%v \n\tstdout=%s \n\tstderr=%s",
+		return outcome, errors.Wrapf(err,
+			"SayaCmd.Exec -- fail to execute command:"+
+				"\n\tcommand=%s \n\targ=%q \n\tpwd=%s \n\tcause=%v "+
+				"\n\tstdout=%s \n\tstderr=%s",
 			sayaCmd.exe, sayaCmd.Args.ArgsDisplay(), wd, err,
-			IndentN(3, Truncate(outcome.Stdout, 512)), IndentN(3, Truncate(outcome.Stderr, 512)))
+			stringutil.IndentN(3, stringutil.Truncate(outcome.Stdout, 512)),
+			stringutil.IndentN(3, stringutil.Truncate(outcome.Stderr, 512)))
 	}
 	return outcome, nil
 
-}
-
-func IndentN(tabs uint8, str string) string {
-	withIndentation := "\n" + strings.Repeat("\t", int(tabs))
-	return strings.ReplaceAll(str, "\n", withIndentation)
-}
-
-func Truncate(str string, maxLen uint32) string {
-	if len(str) < int(maxLen) {
-		return str
-	}
-
-	return str[:maxLen]
-}
-
-type SayaCmdPull struct {
-	SayaCmd
-}
-
-func (sayaCmdPull *SayaCmdPull) WithRef(tagName string) {
-	tagName = strings.TrimSpace(tagName)
-	if tagName == "" {
-		sayaCmdPull.ArgsValidationErrors = append(
-			sayaCmdPull.ArgsValidationErrors, fmt.Errorf("sayaCmdPull -- image ref must not be blank"))
-	}
-	sayaCmdPull.Args.AppendNoValue(strings.TrimSpace(tagName))
-}
-
-// NewSayaCmdPull create a new image-pull base command to be completed with flags.
-// The base command is <saya-exe> image pull
-func NewSayaCmdPull(sayaExe string) (*SayaCmdPull, error) {
-	if sayaExe = strings.TrimSpace(sayaExe); sayaExe == "" {
-		return nil, errors.Errorf("NewSayaCmdPull -- saya-exe must not be blank")
-	}
-	cmd := &SayaCmdPull{SayaCmd{exe: sayaExe}}
-	cmd.Args.AppendNoValue("image")
-	cmd.Args.AppendNoValue("pull")
-
-	return cmd, nil
-}
-
-type CmdImgRm struct {
-	SayaCmd
-}
-
-func (cmd *CmdImgRm) WithRef(tagName string) {
-	tagName = strings.TrimSpace(tagName)
-	if tagName == "" {
-		cmd.ArgsValidationErrors = append(
-			cmd.ArgsValidationErrors, fmt.Errorf("CmdImgRm.WithRes -- image ref must not be blank"))
-	}
-	cmd.Args.AppendNoValue(strings.TrimSpace(tagName))
-}
-
-// CmdImgDel create a new image deletel base command to be completed with flags.
-// The base command is <saya-exe> image rm
-func NewCmdImgDel(sayaExe string) (*CmdImgRm, error) {
-	if sayaExe = strings.TrimSpace(sayaExe); sayaExe == "" {
-		return nil, errors.Errorf("NewCmdImgDel -- saya-exe must not be blank")
-	}
-	cmd := &CmdImgRm{SayaCmd{exe: sayaExe}}
-	cmd.Args.AppendNoValue("image")
-	cmd.Args.AppendNoValue("rm")
-
-	return cmd, nil
-}
-
-type SayaCmdLs struct {
-	SayaCmd
-}
-
-func (sayaCmdPull *SayaCmdLs) WithRef(tagName string) {
-	tagName = strings.TrimSpace(tagName)
-	sayaCmdPull.Args.AppendNoValue(strings.TrimSpace(tagName))
-}
-
-// NewSayaCmdPull create a new image-pull base command to be completed with flags.
-// The base command is <saya-exe> image pull
-func NewSayaCmdLs(sayaExe string) (*SayaCmdPull, error) {
-	if sayaExe = strings.TrimSpace(sayaExe); sayaExe == "" {
-		return nil, errors.Errorf("NewSayaCmdLs -- saya-exe must not be blank")
-	}
-	cmd := &SayaCmdPull{SayaCmd{exe: sayaExe}}
-	cmd.Args.AppendNoValue("image")
-	cmd.Args.AppendNoValue("ls")
-
-	return cmd, nil
 }

@@ -26,6 +26,18 @@ func MapMust[T any, N any](s []T, mapper func(T) N) []N {
 	return mappedS
 }
 
+func MapPMust[T any, N any](s []T, mapper func(*T) N) []N {
+	if s == nil {
+		return []N{}
+	}
+	mappedS := make([]N, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		mapped := mapper(&s[i])
+		mappedS = append(mappedS, mapped)
+	}
+	return mappedS
+}
+
 func FilterMust[T any](s []T, test func(T) bool) []T {
 	if s == nil {
 		return []T{}
