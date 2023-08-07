@@ -86,6 +86,8 @@ jobs:
       - run: go mod download
       - run: go build -o githubtools/main/saya-installer githubtools/main/main.go
       - run: sudo githubtools/main/saya-installer
+      - run: VBoxManage list hostonlyifs
+      - run: sudo modprobe vboxnetadp || true
       - run: mkdir -p '${GITHUB_WORKSPACE}/.tmp/.forge'
       - run: saya image build -t webserver:v1 ./webserverv1
         env:
