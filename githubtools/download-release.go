@@ -33,9 +33,18 @@ import (
 )
 
 func InstallSayaReleaseBin(releaseName string, binInstallDir string) error {
-	releaseUrl, err := getReleaseUrl(releaseName)
-	if err != nil {
-		return err
+	releaseUrl := ""
+
+	altReleaseUrl, avail := os.LookupEnv("SAYA_RELEASE_URL")
+	if avail {
+		log.Printf("InstallSayaReleaseBin -- using saya release url setting from environment: altReleaseUrl=%s", altReleaseUrl)
+		releaseUrl = altReleaseUrl
+	} else {
+		altReleaseUrl, err := getReleaseUrl(releaseName)
+		if err != nil {
+			return err
+		}
+		releaseUrl = altReleaseUrl
 	}
 
 	tmpDir, err := os.MkdirTemp("", "dld-saya-release-*")
@@ -161,13 +170,13 @@ func extractSayaBinary(releaseZipPath string, binInstallDir string, tmpDir strin
 	// 		"extractSayBinary -- fail to file mode to 0755: finalDestination=%s",
 	// 		finalDestination)
 	// }
-	if err := runSayaSetupVirtualBox(sayaExeFileExtractedPath); err != nil {
+	if err := runSayaSetup(sayaExeFileExtractedPath); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runSayaSetupVirtualBox(sayaExeFileExtractedPath string) error {
+func runSayaSetup(sayaExeFileExtractedPath string) error {
 	if err := os.Chmod(sayaExeFileExtractedPath, 0755); err != nil {
 		return errors.Wrapf(err,
 			"runSayaSetupVirtualBox -- fail to file mode to 0755: sayaExeFileExtractedPath=%s err=%v",
@@ -175,7 +184,7 @@ func runSayaSetupVirtualBox(sayaExeFileExtractedPath string) error {
 	}
 	cmd := exec.Command("sudo", sayaExeFileExtractedPath, "setup",
 		"--compute-type", "localhost", "--target", "localhost",
-		"--want-compute-type", "virtualbox",
+		"--want-compute-type", "qemu",
 		"--target-user", "runner",
 		"--log-level", "info",
 	)

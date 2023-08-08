@@ -100,8 +100,8 @@ func TestAccVmRes(t *testing.T) {
 				Config: testAccVmResourceConfig(t, &repos.ImgInRepo{}, forge),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("saya_vm.test", "name", "test1vm"),
-					resource.TestCheckResourceAttr("saya_vm.test", "image", "linux/amd64:webserver:v1:ova"),
-					resource.TestCheckResourceAttr("saya_vm.test", "compute_type", "virtualbox"),
+					resource.TestCheckResourceAttr("saya_vm.test", "image", "linux/amd64:webserver:v1:qcow2"),
+					resource.TestCheckResourceAttr("saya_vm.test", "compute_type", "qemu"),
 					resource.TestCheckResourceAttr("saya_vm.test", "os_variant", "alpine"),
 					resource.TestCheckResourceAttr("saya_vm.test", "state", "running"),
 					CheckTfVmResHasIdOfVmWIthName(t, "saya_vm.test", "test1vm", forge),
@@ -127,8 +127,8 @@ func TestAccVmRes(t *testing.T) {
 				Config: testAccVmResReadConfig(t, &repos.ImgInRepo{}, forge),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("saya_vm.test_read", "name", "test1vm_read"),
-					resource.TestCheckResourceAttr("saya_vm.test_read", "image", "linux/amd64:webserver:v1:ova"),
-					resource.TestCheckResourceAttr("saya_vm.test_read", "compute_type", "virtualbox"),
+					resource.TestCheckResourceAttr("saya_vm.test_read", "image", "linux/amd64:webserver:v1:qcow2"),
+					resource.TestCheckResourceAttr("saya_vm.test_read", "compute_type", "qemu"),
 					resource.TestCheckResourceAttr("saya_vm.test_read", "os_variant", "alpine"),
 					resource.TestCheckResourceAttr("saya_vm.test_read", "state", "stopped"),
 					CheckTfVmResHasIdOfVmWIthName(t, "saya_vm.test_read", "test1vm_read", forge),
@@ -152,8 +152,8 @@ func testAccVmResourceConfig(t *testing.T, imgInRepo *repos.ImgInRepo, forge str
 	tplStr := `
 resource "saya_vm" "test" {
 	name = "test1vm" 
-	image = "linux/amd64:webserver:v1:ova"
-	compute_type = "virtualbox"
+	image = "linux/amd64:webserver:v1:qcow2"
+	compute_type = "qemu"
 	state = "running"
 	# os_variant = "alpine"	
 }`
@@ -195,9 +195,9 @@ func newGivenTest1VmInForgeFn(t *testing.T, imgInRepo *repos.ImgInRepo, forge st
 			},
 			Name:        "test1vm",
 			ImgRef:      "webserver:v1",
-			ComputeType: "virtualbox",
+			ComputeType: "qemu",
 			Platform:    "linux/amd64",
-			ImgType:     "ova",
+			ImgType:     "qcow2",
 		})
 
 		require.NoErrorf(t, err, "givenTest1VmInForge -- fail to create vm test1vm")
@@ -210,8 +210,8 @@ func testAccVmResReadConfig(t *testing.T, imgInRepo *repos.ImgInRepo, forge stri
 	tplStr := `
 resource "saya_vm" "test_read" {
 	name = "test1vm_read" 
-	image = "linux/amd64:webserver:v1:ova"
-	compute_type = "virtualbox"
+	image = "linux/amd64:webserver:v1:qcow2"
+	compute_type = "qemu"
 	state = "stopped"
 }`
 	return testProvider(t, imgInRepo, forge) + tplStr

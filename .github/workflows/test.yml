@@ -86,12 +86,12 @@ jobs:
       - run: go mod download
       - run: go build -o githubtools/main/saya-installer githubtools/main/main.go
       - run: sudo githubtools/main/saya-installer
-      - run: sudo systemctl list-units vbox*
-      - run: sudo modprobe vboxnetadp || true
-      - run: sudo systemctl start vboxdrv vboxautostart-service
-      - run: VBoxManage list hostonlyifs
+      # - run: sudo systemctl list-units vbox*
+      # - run: sudo modprobe vboxnetadp || true
+      # - run: sudo systemctl start vboxdrv vboxautostart-service
+      # - run: VBoxManage list hostonlyifs
       - run: mkdir -p '${GITHUB_WORKSPACE}/.tmp/.forge'
-      - run: saya image build -t webserver:v1 ./webserverv1
+      - run: saya image build -t webserver:v1 ./webserverv1 --compute-type qemu --log-level debug
         env:
           SAYA_FORGE: ${{ github.workspace }}/.tmp/.forge
       - env:

@@ -47,16 +47,22 @@ act-install-binary:
 	.act/install-act-bin.sh 0.2.48
 
 # .tmp/bin/act --list  ==> t o list jobs
+# access denied on /dev/kvm
+# - add user to kvm group
+# - or use docker flag --group-add
 act-run-github-actions-job-build:
 	cd $(PJT_MKFILE_ABSDIR)
 	clear ; mkdir -p .tmp/artifacts ;
 	.tmp/bin/act -v --env LC_ALL=C.UTF-8 \
 		--env LANG=C.UTF-8 \
 		--env LC_TIME=C.UTF-8 \
+		--env XSAYA_RELEASE_URL=http://172.17.0.1:9099/saya-teaser-20230808T183627.zip \
+		--env SAYA_APT_PROXY=http://172.17.0.1:3142 \
 		--platform ubuntu-22.04=act_local/runner-ubuntu-22.4 \
-		--container-options "--privileged" \
+		--container-options "--privileged --device /dev/kvm --group-add $(shell grep kvm /etc/group | awk -F ':' '{print $$3}')" \
 		--job test \
 	    --pull=false \
 		--verbose \
 		--artifact-server-path $(PJT_MKFILE_ABSDIR)/.tmp/artifacts \
+		--rebuild --rm \
 	;

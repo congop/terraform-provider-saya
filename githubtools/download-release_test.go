@@ -56,10 +56,12 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 	}
 	_, err := stubber.WhenExecDoStubFunc(runNopExit0, "sudo", settings)
 	require.NoErrorf(t, err, "fail to stub sudo command")
+	altReleaseUrl := "http://localhost:1235/dasas/dasasa"
 
 	type args struct {
 		releaseName   string
 		binInstallDir string
+		altReleaseUrl *string
 	}
 	tests := []struct {
 		name    string
@@ -69,6 +71,11 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 		{
 			name:    "should-install-saya-bin",
 			args:    args{releaseName: "", binInstallDir: t.TempDir()},
+			wantErr: false,
+		},
+		{
+			name:    "should-install-saya-bin-by-using-alternative-url-env-spec",
+			args:    args{releaseName: "", binInstallDir: t.TempDir(), altReleaseUrl: &altReleaseUrl},
 			wantErr: false,
 		},
 	}
@@ -85,6 +92,16 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 				func(*http.Request) (*http.Response, error) {
 					return httpmock.NewBytesResponse(200, sayaReleaseZipStub(t)), nil
 				})
+
+			if tt.args.altReleaseUrl != nil {
+				httpmock.RegisterResponder(
+					"GET",
+					*tt.args.altReleaseUrl,
+					func(*http.Request) (*http.Response, error) {
+						return httpmock.NewBytesResponse(200, sayaReleaseZipStub(t)), nil
+					})
+				os.Setenv("SAYA_RELEASE_URL", *tt.args.altReleaseUrl)
+			}
 			// https://github.com
 			httpmock.RegisterResponder(
 				"GET", `=~^https://.*github\.com.*\z`,
@@ -102,7 +119,7 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 				expectedCmdParts := []string{
 					"/saya", "setup",
 					"--compute-type", "localhost", "--target", "localhost",
-					"--want-compute-type", "virtualbox",
+					"--want-compute-type", "qemu",
 					"--target-user", "runner",
 					"--log-level", "info",
 				}
