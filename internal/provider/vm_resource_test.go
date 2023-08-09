@@ -16,6 +16,7 @@ package provider
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,10 +32,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const TF_SAYA_FORGE_WITH_IMG_ENV = "TF_SAYA_FORGE_WITH_IMG"
+const EnvNameTfSayaForgeWithImg = "TF_SAYA_FORGE_WITH_IMG"
+const EnvNameTfSayaTestAccVmResArgs = "TF_SAYA_TEST_ACC_VM_RES_ARGS"
 
 func getForgeWithImgWebserverV1(t *testing.T) string {
-	forge, avail := os.LookupEnv(TF_SAYA_FORGE_WITH_IMG_ENV)
+	forge, avail := os.LookupEnv(EnvNameTfSayaForgeWithImg)
 	if avail {
 		if forge = strings.TrimSpace(forge); forge != "" {
 			require.DirExistsf(t, forge,
@@ -76,10 +78,42 @@ func rmVmByName(t *testing.T, vmNames []string, forge string) {
 	}
 }
 
+type tfTestAccVmResArgs struct {
+	saya.Platform
+	ImgType     string `json:"img_type,omitempty"`
+	ComputeType string `json:"compute_type,omitempty"`
+}
+
+func (args *tfTestAccVmResArgs) ImgIdWebserverV1() string {
+	// "linux/amd64:webserver:v1:qcow2"
+	return strings.Join([]string{args.PlatformStr(), "webserver", "v1", args.ImgType}, ":")
+}
+
+func loadTfTestAccVmResArgs(t *testing.T) *tfTestAccVmResArgs {
+	argsJsonStr, avail := os.LookupEnv(EnvNameTfSayaTestAccVmResArgs)
+	require.Truef(t, avail,
+		"args setting per environment variable expected: env-name=%s",
+		EnvNameTfSayaTestAccVmResArgs)
+	args := tfTestAccVmResArgs{}
+	err := json.Unmarshal([]byte(argsJsonStr), &args)
+	require.NoErrorf(t, err,
+		"fail to json-parse tf test-acc-arg json from env: "+
+			"\n\tenv-name=%s \n\tjson=%s",
+		EnvNameTfSayaTestAccVmResArgs, argsJsonStr)
+	return &args
+}
+
 func TestAccVmRes(t *testing.T) {
 	os.Setenv("TF_ACC", "yes")
 	os.Setenv("TF_ACC_LOG", "debug")
 	os.Setenv("TF_LOG", "debug")
+	if _, avail := os.LookupEnv(EnvNameTfSayaTestAccVmResArgs); !avail {
+		os.Setenv(
+			EnvNameTfSayaTestAccVmResArgs,
+			`{"os":"linux", "arch":"arm64", "img_type":"qcow2", "compute_type":"qemu"}`)
+	}
+
+	args := loadTfTestAccVmResArgs(t)
 	forge := getForgeWithImgWebserverV1(t)
 
 	t.Cleanup(
@@ -88,7 +122,9 @@ func TestAccVmRes(t *testing.T) {
 		},
 	)
 
-	givenTest1VmInForgeFn := newGivenTest1VmInForgeFn(t, &repos.ImgInRepo{}, forge)
+	givenTest1VmInForgeFn := newGivenTest1VmInForgeFn(t, &repos.ImgInRepo{}, forge, args)
+
+	imgIdWebserverV1 := args.ImgIdWebserverV1()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() { testAccPreCheck(t) },
@@ -97,11 +133,11 @@ func TestAccVmRes(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccVmResourceConfig(t, &repos.ImgInRepo{}, forge),
+				Config: testAccVmResourceConfig(t, &repos.ImgInRepo{}, forge, args),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("saya_vm.test", "name", "test1vm"),
-					resource.TestCheckResourceAttr("saya_vm.test", "image", "linux/amd64:webserver:v1:qcow2"),
-					resource.TestCheckResourceAttr("saya_vm.test", "compute_type", "qemu"),
+					resource.TestCheckResourceAttr("saya_vm.test", "image", imgIdWebserverV1),
+					resource.TestCheckResourceAttr("saya_vm.test", "compute_type", args.ComputeType),
 					resource.TestCheckResourceAttr("saya_vm.test", "os_variant", "alpine"),
 					resource.TestCheckResourceAttr("saya_vm.test", "state", "running"),
 					CheckTfVmResHasIdOfVmWIthName(t, "saya_vm.test", "test1vm", forge),
@@ -110,7 +146,7 @@ func TestAccVmRes(t *testing.T) {
 			},
 
 			{
-				Config:            testAccVmResourceConfig(t, &repos.ImgInRepo{}, forge),
+				Config:            testAccVmResourceConfig(t, &repos.ImgInRepo{}, forge, args),
 				ResourceName:      "saya_vm.test",
 				ImportState:       true,
 				ImportStateVerify: true,
@@ -124,11 +160,11 @@ func TestAccVmRes(t *testing.T) {
 
 			// Update and Read testing
 			{
-				Config: testAccVmResReadConfig(t, &repos.ImgInRepo{}, forge),
+				Config: testAccVmResReadConfig(t, &repos.ImgInRepo{}, forge, args),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("saya_vm.test_read", "name", "test1vm_read"),
-					resource.TestCheckResourceAttr("saya_vm.test_read", "image", "linux/amd64:webserver:v1:qcow2"),
-					resource.TestCheckResourceAttr("saya_vm.test_read", "compute_type", "qemu"),
+					resource.TestCheckResourceAttr("saya_vm.test_read", "image", imgIdWebserverV1),
+					resource.TestCheckResourceAttr("saya_vm.test_read", "compute_type", args.ComputeType),
 					resource.TestCheckResourceAttr("saya_vm.test_read", "os_variant", "alpine"),
 					resource.TestCheckResourceAttr("saya_vm.test_read", "state", "stopped"),
 					CheckTfVmResHasIdOfVmWIthName(t, "saya_vm.test_read", "test1vm_read", forge),
@@ -148,27 +184,34 @@ func CheckTfVmResHasIdOfVmWIthName(t *testing.T, tfResourceName string, name str
 	}
 }
 
-func testAccVmResourceConfig(t *testing.T, imgInRepo *repos.ImgInRepo, forge string) string {
+func testAccVmResourceConfig(
+	t *testing.T, imgInRepo *repos.ImgInRepo, forge string,
+	args *tfTestAccVmResArgs,
+) string {
 	tplStr := `
 resource "saya_vm" "test" {
 	name = "test1vm" 
-	image = "linux/amd64:webserver:v1:qcow2"
-	compute_type = "qemu"
+	image = "{{ .args.ImgIdWebserverV1 }}"
+	compute_type = "{{ .args.ComputeType }}"
 	state = "running"
 	# os_variant = "alpine"	
 }`
+	data := map[string]any{
+		"imgInRepo": imgInRepo,
+		"args":      args,
+	}
 	tpl := template.New("saya_vm_tf")
 	tpl, err := tpl.Parse(tplStr)
 	require.NoErrorf(t, err, "testAccVmResourceConfig-- fail to parse template")
 	buf := bytes.Buffer{}
-	err = tpl.Execute(&buf, imgInRepo)
+	err = tpl.Execute(&buf, data)
 	require.NoErrorf(t, err, "testAccVmResourceConfig -- fail to execute template")
 
 	return testProvider(t, imgInRepo, forge) + buf.String()
 
 }
 
-func newGivenTest1VmInForgeFn(t *testing.T, imgInRepo *repos.ImgInRepo, forge string) func() string {
+func newGivenTest1VmInForgeFn(t *testing.T, imgInRepo *repos.ImgInRepo, forge string, args *tfTestAccVmResArgs) func() string {
 	id := ""
 
 	return func() string {
@@ -195,9 +238,9 @@ func newGivenTest1VmInForgeFn(t *testing.T, imgInRepo *repos.ImgInRepo, forge st
 			},
 			Name:        "test1vm",
 			ImgRef:      "webserver:v1",
-			ComputeType: "qemu",
-			Platform:    "linux/amd64",
-			ImgType:     "qcow2",
+			ComputeType: args.ComputeType,   // "qemu",
+			Platform:    args.PlatformStr(), // "linux/amd64",
+			ImgType:     args.ImgType,       // "qcow2",
 		})
 
 		require.NoErrorf(t, err, "givenTest1VmInForge -- fail to create vm test1vm")
@@ -206,15 +249,30 @@ func newGivenTest1VmInForgeFn(t *testing.T, imgInRepo *repos.ImgInRepo, forge st
 	}
 }
 
-func testAccVmResReadConfig(t *testing.T, imgInRepo *repos.ImgInRepo, forge string) string {
+func testAccVmResReadConfig(
+	t *testing.T, imgInRepo *repos.ImgInRepo, forge string,
+	args *tfTestAccVmResArgs,
+) string {
+
 	tplStr := `
 resource "saya_vm" "test_read" {
 	name = "test1vm_read" 
-	image = "linux/amd64:webserver:v1:qcow2"
-	compute_type = "qemu"
+	image = "{{ .args.ImgIdWebserverV1 }}"
+	compute_type = "{{ .args.ComputeType }}"
 	state = "stopped"
 }`
-	return testProvider(t, imgInRepo, forge) + tplStr
+	data := map[string]any{
+		"imgInRepo": imgInRepo,
+		"args":      args,
+	}
+	tpl := template.New("saya_vm_tf_read")
+	tpl, err := tpl.Parse(tplStr)
+	require.NoErrorf(t, err, "testAccVmResReadConfig-- fail to parse template")
+	buf := bytes.Buffer{}
+	err = tpl.Execute(&buf, data)
+	require.NoErrorf(t, err, "testAccVmResReadConfig -- fail to execute template")
+
+	return testProvider(t, imgInRepo, forge) + buf.String()
 
 }
 

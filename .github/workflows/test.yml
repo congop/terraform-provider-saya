@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3.5.3
-      - uses: actions/setup-go@v4.0.1
+      - uses: actions/setup-go@v4.1.0
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3.5.3
-      - uses: actions/setup-go@v4.0.1
+      - uses: actions/setup-go@v4.1.0
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -75,7 +75,7 @@ jobs:
           - '1.5.*'
     steps:
       - uses: actions/checkout@v3.5.3 
-      - uses: actions/setup-go@v4.0.1 
+      - uses: actions/setup-go@v4.1.0 
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -91,7 +91,7 @@ jobs:
       # - run: sudo systemctl start vboxdrv vboxautostart-service
       # - run: VBoxManage list hostonlyifs
       - run: mkdir -p '${GITHUB_WORKSPACE}/.tmp/.forge'
-      - run: saya image build -t webserver:v1 ./webserverv1 --compute-type qemu --log-level debug
+      - run: saya image build -t webserver:v1 ./webserverv1 --compute-type qemu --log-level debug --platform linux/arm64
         env:
           SAYA_FORGE: ${{ github.workspace }}/.tmp/.forge
       - env:
