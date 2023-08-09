@@ -94,10 +94,12 @@ jobs:
       - run: saya image build -t webserver:v1 ./webserverv1 --compute-type qemu --log-level debug --platform linux/arm64
         env:
           SAYA_FORGE: ${{ github.workspace }}/.tmp/.forge
+          SAYA_CREATION_POLICY: "type=cloud_init_done_by_phone_cmdb,timeout=PT7M,data="
       - env:
           TF_ACC: "1"
           TF_LOG: "trace"
           TF_SAYA_FORGE_WITH_IMG: ${{ github.workspace }}/.tmp/.forge
+          SAYA_CREATION_POLICY: "type=cloud_init_done_by_phone_cmdb,timeout=PT7M,data="
         # run: go test -v -cover ./internal/provider/
         run: go test -v -cover ./...
         # run: go test ./... -run TestAccExampleDataSource
