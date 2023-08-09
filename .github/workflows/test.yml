@@ -101,6 +101,6 @@ jobs:
           TF_SAYA_FORGE_WITH_IMG: ${{ github.workspace }}/.tmp/.forge
           SAYA_CREATION_POLICY: "type=cloud_init_done_by_phone_cmdb,timeout=PT7M,data="
         # run: go test -v -cover ./internal/provider/
-        run: go test -v -cover ./...
+        run: go test -v -cover -timeout 20m ./...
         # run: go test ./... -run TestAccExampleDataSource
         timeout-minutes: 30
