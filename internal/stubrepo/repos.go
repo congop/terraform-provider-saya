@@ -68,7 +68,7 @@ func (drs *RemoteRepos) GivenS3RepoStarted() error {
 }
 
 type ImgInRepo struct {
-	img    DummyImg
+	Img    DummyImg
 	Sha256 string
 	Repos  *saya.Repos
 }
@@ -77,7 +77,15 @@ func (r *ImgInRepo) HasHttpRepo() bool {
 	return r != nil && r.Repos != nil && r.Repos.Http != nil
 }
 
-func GivenImgInRemoteRepo(
+func (r *ImgInRepo) HasS3Repo() bool {
+	return r != nil && r.Repos != nil && r.Repos.S3 != nil
+}
+
+func (r *ImgInRepo) HasS3RepoCredentials() bool {
+	return r != nil && r.Repos != nil && r.Repos.S3 != nil && r.Repos.S3.AuthAwsCreds != nil
+}
+
+func GivenImgInRemoteRepoBySpec(
 	imgRegisterer func(*DummyImg) error,
 	specData PullImgSpecData, metaInRemoteRepo bool,
 ) (*ImgInRepo, error) {
@@ -93,15 +101,23 @@ func GivenImgInRemoteRepo(
 		return nil, err
 	}
 
-	if err = imgRegisterer(remoteImg); err != nil {
+	return GivenImgInRemoteRepo(imgRegisterer, remoteImg)
+}
+
+func GivenImgInRemoteRepo(
+	imgRegisterer func(*DummyImg) error,
+	remoteImg *DummyImg,
+) (*ImgInRepo, error) {
+
+	if err := imgRegisterer(remoteImg); err != nil {
 		return nil, err
 	}
-	sha256, err := DigestSha256(bytes.NewBuffer(slices.Clone(imgBytes)))
+	sha256, err := DigestSha256(bytes.NewBuffer(slices.Clone(remoteImg.img)))
 	if err != nil {
 		return nil, err
 	}
 	ret := &ImgInRepo{
-		img:    *remoteImg,
+		Img:    *remoteImg,
 		Sha256: sha256,
 	}
 	return ret, nil

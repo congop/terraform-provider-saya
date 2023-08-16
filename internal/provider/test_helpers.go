@@ -62,7 +62,7 @@ func givenUbuntuVxOvaLinuxArmInForge(
 			log.Errorf(repos.StubLogCtx(), "fail to stop http server: err=%+v ", err)
 		}
 	}()
-	img, err := repos.GivenImgInRemoteRepo(httpRepo.RegisterDummyImg, specData, true)
+	img, err := repos.GivenImgInRemoteRepoBySpec(httpRepo.RegisterDummyImg, specData, true)
 	require.NoErrorf(t, err, "fail to put image in forge")
 	pullReq := saya.PullRequest{
 		Name:     specData.Tag.Normalized(),
@@ -90,11 +90,18 @@ func givenUbuntuV1OvaLinuxArmInHttpRepo(dummyRepos *repos.RemoteRepos) (*repos.I
 		ImgType:   "ova",
 	}
 
-	img, err := repos.GivenImgInRemoteRepo(dummyRepos.Http.RegisterDummyImg, specData, true)
+	img, err := repos.GivenImgInRemoteRepoBySpec(dummyRepos.Http.RegisterDummyImg, specData, true)
 	if err != nil {
 		return nil, err
 	}
+
+	if _, err = repos.GivenImgInRemoteRepo(dummyRepos.S3.RegisterDummyImg, &img.Img); err != nil {
+		return nil, err
+	}
+
 	img.Repos = dummyRepos.Http.AsRepos()
+	img.Repos.S3 = dummyRepos.S3.AsRepos().S3
+
 	return img, nil
 }
 

@@ -32,6 +32,7 @@ type PullRequest struct {
 	Hash     string
 	RepoType string
 	HttpRepo *HttpRepo
+	S3Repo   *S3Repo
 
 	Exe        string        // saya executable command or path
 	Config     string        // saya executable command or path
@@ -71,14 +72,37 @@ func Pull(ctx context.Context, req PullRequest) (*PullResult, error) {
 	cmd.appendFlagIfNotBlank("--platform", req.Platform)
 	cmd.appendFlagIfNotBlank("--repo-type", req.RepoType)
 
-	//cmd.appendFlagIfNotBlank("--repo-type", req.RepoType)
-
 	if repo := req.HttpRepo; repo != nil {
 		cmd.appendFlagIfNotBlank("--http-auth-basic-password", repo.AuthHttpBasic.Pwd)
 		cmd.appendFlagIfNotBlank("--http-auth-basic-username", repo.AuthHttpBasic.Username)
 		cmd.appendFlagIfNotBlank("--http-base-path", repo.BasePath)
 		cmd.appendFlagIfNotBlank("--http-repo-url", repo.RepoUrl)
 		cmd.appendFlagIfNotBlank("--http-upload-strategy", repo.UploadStrategy)
+	}
+
+	if repo := req.S3Repo; repo != nil {
+		if cred := repo.AuthAwsCreds; cred != nil {
+			cmd.appendFlagIfNotBlank("--aws-access-key-id", cred.AccessKeyID)
+			cmd.appendFlagIfNotBlank("--aws-secret-access-key", cred.SecretAccessKey)
+
+			// TODO not supported yet by saya cli
+			// cmd.appendFlagIfNotBlank("--session-token", cred.SessionToken)
+			// cmd.appendFlagIfNotBlank("--aws-source", cred.Source)
+			// if cred.CanExpire {
+			// 	cmd.appendFlagIfNotBlank("--aws-can-expire", "true")
+			// }
+			// cmd.appendFlagIfNotBlank("--aws-expires", cred.Expires.Format(time.RFC3339))
+		}
+		if repo.UsePathStyle {
+			cmd.Args.AppendNoValue("--s3-use-path-style")
+		}
+		cmd.appendFlagIfNotBlank("--aws-ep-url", repo.EpUrl)
+		cmd.appendFlagIfNotBlank("--aws-ep-url-s3", repo.EpUrlS3)
+		cmd.appendFlagIfNotBlank("--aws-region", repo.Region)
+
+		cmd.appendFlagIfNotBlank("--s3-base-key", repo.BaseKey)
+		cmd.appendFlagIfNotBlank("--s3-bucket", repo.Bucket)
+
 	}
 
 	resultDst, err := newTmpResultDstPath()

@@ -86,6 +86,9 @@ func TransferToS3(ctx context.Context, ftSpec *S3FilesTransferSpec) error {
 			uploader := manager.NewUploader(client, func(u *manager.Uploader) { u.Concurrency = 2 })
 			_, err = uploader.Upload(StubLogCtx(), input, func(u *manager.Uploader) {
 				// u.PartSize = 64 * 1024 * 1024 // 64MB per part
+				u.ClientOptions = append(u.ClientOptions, func(o *s3.Options) {
+					o.UsePathStyle = true
+				})
 			})
 			if err != nil {
 				return errors.Wrapf(

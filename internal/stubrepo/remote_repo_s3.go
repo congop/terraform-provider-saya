@@ -17,12 +17,14 @@ package stubrepo
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"path"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/congop/terraform-provider-saya/internal/saya"
+	"github.com/congop/terraform-provider-saya/internal/stringutil"
 	"github.com/pkg/errors"
 	"github.com/testcontainers/testcontainers-go"
 )
@@ -35,6 +37,25 @@ type RepoS3 struct {
 	tc            testcontainers.Container
 	portLsGateway int
 	s3Client      *s3.Client
+}
+
+func (repo *RepoS3) Log(logf func(format string, args ...any)) {
+	if repo == nil {
+		return
+	}
+	rc, err := repo.tc.Logs(StubLogCtx())
+	if err != nil {
+		logf("RepoS3 -- fail to get log: err=%v", err)
+	}
+
+	defer rc.Close()
+
+	allBytes, err := io.ReadAll(rc)
+	if err != nil {
+		logf("RepoS3 -- fail to read all log: err=%v", err)
+	}
+
+	logf("RepoS3.Log --  container log: %s", stringutil.IndentN(3, string(allBytes)))
 }
 
 func (repo *RepoS3) getS3Client() (*s3.Client, error) {
@@ -74,9 +95,11 @@ func (repo *RepoS3) mkBucket() error {
 	_, err = client.CreateBucket(StubLogCtx(),
 		&s3.CreateBucketInput{
 			Bucket: &s3Repo.Bucket,
+		}, func(o *s3.Options) {
+			o.UsePathStyle = true
 		})
 	if err != nil {
-		return errors.Wrapf(err, "DummyRepoS3 -- fail to create bucket: bucket=%s, err=%v", s3Repo.Bucket, err)
+		return errors.Wrapf(err, "DummyRepoS3 -- fail to create bucket: \n\tbucket=%s, \n\terr=%v", s3Repo.Bucket, err)
 	}
 
 	return nil
@@ -155,9 +178,9 @@ func (repo *RepoS3) AsRepos() *saya.Repos {
 			Bucket:  "repobucket",
 			BaseKey: "rbase",
 			EpUrl:   fmt.Sprintf("http://localhost:%d", repo.portLsGateway),
-			EpUrlS3: fmt.Sprintf("http://localhost:%d/repobucket", repo.portLsGateway),
+			EpUrlS3: fmt.Sprintf("http://localhost:%d/", repo.portLsGateway),
 			Region:  "us-east-1",
-			AuthAwsCreds: saya.AwsCredentials{
+			AuthAwsCreds: &saya.AwsCredentials{
 				AccessKeyID:     "test",
 				SecretAccessKey: "test",
 			},

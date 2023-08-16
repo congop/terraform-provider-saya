@@ -154,7 +154,7 @@ func (sayaCmd SayaCmd) Exec(ctx context.Context) (ExecOutcome, error) {
 				"\n\tcommand=%s \n\targ=%q \n\tpwd=%s \n\tcause=%v "+
 				"\n\tstdout=%s \n\tstderr=%s",
 			sayaCmd.exe, sayaCmd.Args.ArgsDisplay(), wd, err,
-			stringutil.IndentN(3, stringutil.Truncate(outcome.Stdout, 512)),
+			stringutil.IndentN(3, string(outcome.Stdout)),
 			stringutil.IndentN(3, stringutil.Truncate(outcome.Stderr, 512)))
 	}
 	return outcome, nil

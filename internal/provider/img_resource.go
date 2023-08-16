@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/smithy-go/time"
 	"github.com/congop/terraform-provider-saya/internal/log"
 	"github.com/congop/terraform-provider-saya/internal/saya"
 	"github.com/congop/terraform-provider-saya/internal/slices"
@@ -32,6 +33,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/pkg/errors"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -69,6 +71,52 @@ type ImageResourceModelHttpRepo struct {
 	BasePath       string                          `tfsdk:"base_path"`
 	UploadStrategy string                          `tfsdk:"upload_strategy"`
 	AuthHttpBasic  ImageResourceModelHttpAuthBasic `tfsdk:"basic_auth"`
+}
+
+type ImageResourceModelS3RepoCred struct {
+	AccessKeyID     string `tfsdk:"access_key_id"`
+	SecretAccessKey string `tfsdk:"secret_access_key"`
+	SessionToken    string `tfsdk:"session_token"`
+	Source          string `tfsdk:"source"`
+	CanExpire       bool   `tfsdk:"can_expire"`
+	Expires         string `tfsdk:"expires"`
+}
+
+func (credTf *ImageResourceModelS3RepoCred) AsSayaCred() (*saya.AwsCredentials, error) {
+	if credTf == nil {
+		return nil, nil
+	}
+	sayaCred := saya.AwsCredentials{
+		AccessKeyID:     credTf.AccessKeyID,
+		SecretAccessKey: credTf.SecretAccessKey,
+		SessionToken:    credTf.SessionToken,
+		Source:          credTf.Source,
+		CanExpire:       credTf.CanExpire,
+		Expires:         nil,
+	}
+
+	if expiresTf := strings.TrimSpace(credTf.Expires); expiresTf != "" {
+		expires, err := time.ParseDateTime(expiresTf)
+		if err != nil {
+			return nil, errors.Wrapf(err,
+				"ImageResourceModelS3RepoCred.AsSayaCred -- bad date time format for expires"+
+					"\n\texpected-format: RFC3339, e.g. 1985-04-12T23:20:50.52Z"+
+					"\n\tvalue-string=%s \n\tparse-issue=%s",
+				expiresTf, err.Error())
+		}
+		sayaCred.Expires = &expires
+	}
+
+	return &sayaCred, nil
+}
+
+type ImageResourceModelS3Repo struct {
+	Bucket       string                        `tfsdk:"bucket"`
+	BaseKey      string                        `tfsdk:"base_key"`
+	EpUrlS3      string                        `tfsdk:"ep_url_s3"`
+	Region       string                        `tfsdk:"region"`
+	UsePathStyle bool                          `tfsdk:"use_path_style"`
+	Credentials  *ImageResourceModelS3RepoCred `tfsdk:"credentials"`
 }
 
 func (repo ImageResourceModelHttpRepo) NormalizeToNil() *ImageResourceModelHttpRepo {
@@ -246,12 +294,35 @@ func (r *ImageResource) Create(ctx context.Context, req resource.CreateRequest, 
 		Hash:     data.Hash.ValueString(),
 		RepoType: data.RepoType.ValueString(),
 
-		HttpRepo:   r.sayaExeCtx.HttpRepo(),
 		Exe:        r.sayaExeCtx.SayaExe,
 		Config:     r.sayaExeCtx.Config,
 		Forge:      r.sayaExeCtx.Forge,
 		LicenseKey: r.sayaExeCtx.LicenseKey,
 		LogLevel:   r.sayaExeCtx.LogLevel,
+	}
+
+	switch repoType := data.RepoType.ValueString(); {
+	case saya.IsRepoTypeHttp(repoType):
+		pullReq.HttpRepo = r.sayaExeCtx.HttpRepo()
+	case saya.IsRepoTypeS3(repoType):
+		pullReq.S3Repo = r.sayaExeCtx.S3Repo()
+	case repoType == "" && r.sayaExeCtx.repos.HttpOnly():
+		pullReq.HttpRepo = r.sayaExeCtx.HttpRepo()
+	case repoType == "" && r.sayaExeCtx.repos.S3Only():
+		pullReq.S3Repo = r.sayaExeCtx.S3Repo()
+	case repoType == "":
+		resp.Diagnostics.AddError(
+			"repo-type not specified but not exactly one repo-type available",
+			fmt.Sprintf(
+				"repo-type not specified but not exactly one repo-type available: available=%s",
+				r.sayaExeCtx.repos.AvailableRepoTypes()))
+	default:
+		resp.Diagnostics.AddError(
+			"illegal saya repository configuration",
+			fmt.Sprintf(
+				"illegal saya repository configuration: \n\twanted-repo-type=%s \n\tavailable=%s",
+				repoType, r.sayaExeCtx.repos.AvailableRepoTypes()))
+
 	}
 
 	pullRes, err := saya.Pull(ctx, pullReq)
@@ -314,7 +385,7 @@ func pullImgAndUpdateData(
 	data.Sha256 = types.StringValue(pullRes.Sha256)
 	data.ImgType = types.StringValue(pullRes.Type)
 	data.Platform = types.StringValue(platformStr)
-	data.Name = types.StringValue(pullRes.Name)
+	data.Name = types.StringValue(pullRes.Name + ":" + pullRes.Version)
 
 }
 

@@ -59,7 +59,7 @@ act-run-github-actions-job-build:
 		--env XSAYA_RELEASE_URL=http://172.17.0.1:9099/saya-teaser-20230808T183627.zip \
 		--env SAYA_APT_PROXY=http://172.17.0.1:3142 \
 		--platform ubuntu-22.04=act_local/runner-ubuntu-22.4 \
-		--container-options "--privileged --device /dev/kvm --group-add $(shell grep kvm /etc/group | awk -F ':' '{print $$3}')" \
+		--container-options "--privileged --device /dev/kvm --group-add $(shell grep kvm /etc/group | awk -F ':' '{print $$3}')  --group-add $(shell grep docker /etc/group | awk -F ':' '{print $$3}')" \
 		--job test \
 	    --pull=false \
 		--verbose \

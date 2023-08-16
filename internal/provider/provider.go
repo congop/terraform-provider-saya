@@ -16,6 +16,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/congop/terraform-provider-saya/internal/log"
@@ -84,6 +85,23 @@ func (exeCtx *SayaExecutionCtx) HttpRepo() *saya.HttpRepo {
 	return exeCtx.repos.Http
 }
 
+func (exeCtx *SayaExecutionCtx) setS3Repo(s3Repo *saya.S3Repo) {
+	if s3Repo == nil {
+		return
+	}
+	if exeCtx.repos == nil {
+		exeCtx.repos = &saya.Repos{}
+	}
+	exeCtx.repos.S3 = s3Repo
+}
+
+func (exeCtx *SayaExecutionCtx) S3Repo() *saya.S3Repo {
+	if exeCtx.repos == nil {
+		return nil
+	}
+	return exeCtx.repos.S3
+}
+
 // SayaProviderModel describes the provider data model.
 // @mind no LogLevel because terraform sets it throw environment variable so we are following the lead.
 type SayaProviderModel struct {
@@ -93,6 +111,7 @@ type SayaProviderModel struct {
 	LicenseKey types.String `tfsdk:"license_key"`
 
 	HttpRepo types.Object `tfsdk:"http_repo"`
+	S3Repo   types.Object `tfsdk:"s3_repo"`
 }
 
 func (p *SayaProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -150,6 +169,60 @@ func (p *SayaProvider) Schema(ctx context.Context, req provider.SchemaRequest, r
 				},
 				Optional: true,
 			},
+			"s3_repo": schema.SingleNestedAttribute{
+				Attributes: map[string]schema.Attribute{
+					"bucket": schema.StringAttribute{
+						Description: "the s3 bucket of the remote repository",
+						Required:    true,
+					},
+					"base_key": schema.StringAttribute{
+						Description: "the base key of the remote repository",
+						Optional:    true,
+					},
+					"ep_url_s3": schema.StringAttribute{
+						Description: "the endpoint url for the s3 service",
+						Optional:    true,
+					},
+					"region": schema.StringAttribute{
+						Description: "the region of the s3 service",
+						Optional:    true,
+					},
+					"use_path_style": schema.BoolAttribute{
+						Description: "true to allows the client to use path-style addressing, i.e., https://s3.amazonaws.com/BUCKET/KEY",
+						Optional:    true,
+					},
+					"credentials": schema.SingleNestedAttribute{
+						Attributes: map[string]schema.Attribute{
+							"access_key_id": schema.StringAttribute{
+								Description: "aws access id",
+								Optional:    true,
+							},
+							"secret_access_key": schema.StringAttribute{
+								Description: "aws secret access key",
+								Optional:    true,
+							},
+							"session_token": schema.StringAttribute{
+								Description: "the aws session token",
+								Optional:    true,
+							},
+							"source": schema.StringAttribute{
+								Description: "the source of the credential",
+								Optional:    true,
+							},
+							"can_expire": schema.StringAttribute{
+								Description: "if the credential can expire",
+								Optional:    true,
+							},
+							"expires": schema.StringAttribute{
+								Description: "the time the credential will expire",
+								Optional:    true,
+							},
+						},
+						Optional: true,
+					},
+				},
+				Optional: true,
+			},
 		},
 	}
 }
@@ -175,10 +248,9 @@ func (p *SayaProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 		exeCtx.SayaExe = "saya"
 	}
 
-	httpRepoTf := &ImageResourceModelHttpRepo{}
-
 	// opts to avoid <<Received null value, however the target type cannot handle null values.>>
 	if !(data.HttpRepo.IsNull() || data.HttpRepo.IsUnknown()) {
+		httpRepoTf := &ImageResourceModelHttpRepo{}
 		diagsMapping := data.HttpRepo.As(ctx, httpRepoTf, basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true})
 		if diagsMapping.HasError() {
 			resp.Diagnostics.Append(diagsMapping...)
@@ -195,7 +267,33 @@ func (p *SayaProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 		}
 
 		exeCtx.setHttpRepo(httpRepoSaya.NormalizeToNil())
+	}
 
+	// opts to avoid <<Received null value, however the target type cannot handle null values.>>
+	if !(data.S3Repo.IsNull() || data.S3Repo.IsUnknown()) {
+		s3RepoTf := &ImageResourceModelS3Repo{}
+		diagsMapping := data.S3Repo.As(ctx, s3RepoTf, basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true})
+		if diagsMapping.HasError() {
+			resp.Diagnostics.Append(diagsMapping...)
+			return
+		}
+		credTf := s3RepoTf.Credentials
+		s3RepoSaya := saya.S3Repo{
+			Bucket:       s3RepoTf.Bucket,
+			BaseKey:      s3RepoTf.BaseKey,
+			EpUrlS3:      s3RepoTf.EpUrlS3,
+			Region:       s3RepoTf.Region,
+			UsePathStyle: s3RepoTf.UsePathStyle,
+			AuthAwsCreds: nil,
+		}
+		sayaCred, err := credTf.AsSayaCred()
+		if err != nil {
+			resp.Diagnostics.AddError(err.Error(), fmt.Sprintf("%+v", err))
+			return
+		}
+		s3RepoSaya.AuthAwsCreds = sayaCred
+
+		exeCtx.setS3Repo(s3RepoSaya.NormalizeToNil())
 	}
 
 	resp.DataSourceData = exeCtx

@@ -23,6 +23,14 @@ import (
 const RepoTypeHttp = "http"
 const RepoTypeS3 = "s3"
 
+func IsRepoTypeHttp(repoType string) bool {
+	return repoType == "http" || repoType == "https"
+}
+
+func IsRepoTypeS3(repoType string) bool {
+	return repoType == "s3"
+}
+
 type AwsCredentials struct {
 	// AWS Access key ID
 	AccessKeyID string //revive:disable-line:var-naming
@@ -38,7 +46,26 @@ type AwsCredentials struct {
 
 	// Time the credentials will expire.
 	CanExpire bool
-	Expires   time.Time
+	Expires   *time.Time
+}
+
+func (cred *AwsCredentials) NormalizeToNil() *AwsCredentials {
+	if cred == nil {
+		return nil
+	}
+	copy := *cred
+	copy.AccessKeyID = strings.TrimSpace(copy.AccessKeyID)
+	copy.SecretAccessKey = strings.TrimSpace(copy.SecretAccessKey)
+	copy.SessionToken = strings.TrimSpace(copy.SessionToken)
+	copy.Source = strings.TrimSpace(copy.Source)
+	if copy.Expires != nil && copy.Expires.IsZero() {
+		copy.Expires = nil
+	}
+	return &copy
+}
+
+func (cred *AwsCredentials) HasExpires() bool {
+	return cred != nil && cred.Expires != nil && !cred.Expires.IsZero()
 }
 
 type AuthHttpBasic struct {
@@ -77,7 +104,26 @@ type S3Repo struct {
 	EpUrlS3 string
 	Region  string // aws region to send request to
 
-	AuthAwsCreds AwsCredentials
+	AuthAwsCreds *AwsCredentials
+	UsePathStyle bool
+}
+
+func (repo *S3Repo) NormalizeToNil() *S3Repo {
+	if repo == nil {
+		return nil
+	}
+	copy := *repo
+	copy.AuthAwsCreds = copy.AuthAwsCreds.NormalizeToNil()
+	copy.BaseKey = strings.TrimSpace(copy.BaseKey)
+	copy.Bucket = strings.TrimSpace(copy.Bucket)
+	copy.EpUrl = strings.TrimSpace(copy.EpUrl)
+	copy.EpUrlS3 = strings.TrimSpace(copy.EpUrlS3)
+	copy.Region = strings.TrimSpace(copy.Region)
+
+	if (copy == S3Repo{}) {
+		return nil
+	}
+	return &copy
 }
 
 type Repos struct {
@@ -98,10 +144,22 @@ func (repo *Repos) ExactlyOneRepoSpecified() bool {
 
 // S3Only return true if only the S3 repo is specified; false otherwise.
 func (repo *Repos) S3Only() bool {
-	return repo.ExactlyOneRepoSpecified() && repo.S3 != nil
+	return repo != nil && repo.ExactlyOneRepoSpecified() && repo.S3 != nil
 }
 
 // HttpOnly return true if only the http repo is specified, false otherwise
 func (repo *Repos) HttpOnly() bool {
-	return repo.ExactlyOneRepoSpecified() && repo.Http != nil
+	return repo != nil && repo.ExactlyOneRepoSpecified() && repo.Http != nil
+}
+
+func (repo *Repos) AvailableRepoTypes() []string {
+	avails := make([]string, 0, 2)
+	if repo.Http != nil {
+		avails = append(avails, RepoTypeHttp)
+	}
+
+	if repo.S3 != nil {
+		avails = append(avails, RepoTypeS3)
+	}
+	return avails
 }
