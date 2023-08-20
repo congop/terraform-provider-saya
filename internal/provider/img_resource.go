@@ -17,14 +17,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/aws/smithy-go/time"
 	"github.com/congop/terraform-provider-saya/internal/log"
 	"github.com/congop/terraform-provider-saya/internal/saya"
 	"github.com/congop/terraform-provider-saya/internal/slices"
 	saya_types "github.com/congop/terraform-provider-saya/internal/types"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -32,8 +29,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/pkg/errors"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -59,77 +54,6 @@ type ImageResourceModel struct {
 	Sha256      types.String `tfsdk:"sha256"`
 	KeepLocally types.Bool   `tfsdk:"keep_locally"`
 	RepoType    types.String `tfsdk:"repo_type"`
-	HttpRepo    types.Object `tfsdk:"http_repo"`
-}
-type ImageResourceModelHttpAuthBasic struct {
-	Username string `tfsdk:"username"`
-	Pwd      string `tfsdk:"password"`
-}
-
-type ImageResourceModelHttpRepo struct {
-	RepoUrl        string                          `tfsdk:"url"`
-	BasePath       string                          `tfsdk:"base_path"`
-	UploadStrategy string                          `tfsdk:"upload_strategy"`
-	AuthHttpBasic  ImageResourceModelHttpAuthBasic `tfsdk:"basic_auth"`
-}
-
-type ImageResourceModelS3RepoCred struct {
-	AccessKeyID     string `tfsdk:"access_key_id"`
-	SecretAccessKey string `tfsdk:"secret_access_key"`
-	SessionToken    string `tfsdk:"session_token"`
-	Source          string `tfsdk:"source"`
-	CanExpire       bool   `tfsdk:"can_expire"`
-	Expires         string `tfsdk:"expires"`
-}
-
-func (credTf *ImageResourceModelS3RepoCred) AsSayaCred() (*saya.AwsCredentials, error) {
-	if credTf == nil {
-		return nil, nil
-	}
-	sayaCred := saya.AwsCredentials{
-		AccessKeyID:     credTf.AccessKeyID,
-		SecretAccessKey: credTf.SecretAccessKey,
-		SessionToken:    credTf.SessionToken,
-		Source:          credTf.Source,
-		CanExpire:       credTf.CanExpire,
-		Expires:         nil,
-	}
-
-	if expiresTf := strings.TrimSpace(credTf.Expires); expiresTf != "" {
-		expires, err := time.ParseDateTime(expiresTf)
-		if err != nil {
-			return nil, errors.Wrapf(err,
-				"ImageResourceModelS3RepoCred.AsSayaCred -- bad date time format for expires"+
-					"\n\texpected-format: RFC3339, e.g. 1985-04-12T23:20:50.52Z"+
-					"\n\tvalue-string=%s \n\tparse-issue=%s",
-				expiresTf, err.Error())
-		}
-		sayaCred.Expires = &expires
-	}
-
-	return &sayaCred, nil
-}
-
-type ImageResourceModelS3Repo struct {
-	Bucket       string                        `tfsdk:"bucket"`
-	BaseKey      string                        `tfsdk:"base_key"`
-	EpUrlS3      string                        `tfsdk:"ep_url_s3"`
-	Region       string                        `tfsdk:"region"`
-	UsePathStyle bool                          `tfsdk:"use_path_style"`
-	Credentials  *ImageResourceModelS3RepoCred `tfsdk:"credentials"`
-}
-
-func (repo ImageResourceModelHttpRepo) NormalizeToNil() *ImageResourceModelHttpRepo {
-	repo.AuthHttpBasic.Pwd = strings.TrimSpace(repo.AuthHttpBasic.Pwd)
-	repo.AuthHttpBasic.Username = strings.TrimSpace(repo.AuthHttpBasic.Username)
-	repo.BasePath = strings.TrimSpace(repo.BasePath)
-	repo.RepoUrl = strings.TrimSpace(repo.RepoUrl)
-	repo.UploadStrategy = strings.TrimSpace(repo.UploadStrategy)
-
-	if (repo == ImageResourceModelHttpRepo{}) {
-		return nil
-	}
-	return &repo
 }
 
 func (r *ImageResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -196,68 +120,9 @@ func (r *ImageResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				// 	SuppressFromDiffAttributePlanModifierStr("repo_type"),
 				// },
 			},
-			"http_repo": schema.SingleNestedAttribute{
-				Attributes: map[string]schema.Attribute{
-					"url": schema.StringAttribute{
-						Description: "the url  of the remote repository",
-						Required:    true,
-					},
-					"base_path": schema.StringAttribute{
-						Description: "the base path  of the remote repository",
-						Optional:    true,
-					},
-					"upload_strategy": schema.StringAttribute{
-						Description: "upload strategy",
-						Optional:    true,
-					},
-					"basic_auth": schema.SingleNestedAttribute{
-						Attributes: map[string]schema.Attribute{
-							"username": schema.StringAttribute{
-								Description: "the username to authenticate with",
-								Required:    true,
-							},
-							"password": schema.StringAttribute{
-								Description: "the password",
-								Required:    true,
-							},
-						},
-						Optional: true,
-					},
-				},
-				Optional: true,
-				// PlanModifiers: []planmodifier.Object{
-				// 	SyncAttributePlanModifier("http_repo"),
-				// },
-			},
 		},
 	}
 
-}
-func attributesHttpRepo() map[string]attr.Type {
-	return map[string]attr.Type{
-		"url":             basetypes.StringType{},
-		"base_path":       basetypes.StringType{},
-		"upload_strategy": basetypes.StringType{},
-		"basic_auth": basetypes.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"username": basetypes.StringType{},
-				"password": basetypes.StringType{},
-			},
-		},
-		//  schema.SingleNestedAttribute{
-		// 	Attributes: map[string]schema.Attribute{
-		// 		"username": schema.StringAttribute{
-		// 			Description: "the username to authenticate with",
-		// 			Required:    true,
-		// 		},
-		// 		"password": schema.StringAttribute{
-		// 			Description: "the password",
-		// 			Required:    true,
-		// 		},
-		// 	},
-		// 	Optional: true,
-		// },
-	}
 }
 
 func (r *ImageResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -542,7 +407,6 @@ func (r *ImageResource) ImportState(ctx context.Context, req resource.ImportStat
 		data.ImgType = types.StringValue(lsRes.Type)
 		data.Platform = types.StringValue(platformStr)
 		data.RepoType = types.StringValue(lsRes.SrcType)
-		data.HttpRepo = types.ObjectNull(attributesHttpRepo())
 		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	case len(lsResList) == 0:

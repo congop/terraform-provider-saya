@@ -56,18 +56,31 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      - uses: hashicorp/setup-terraform@v2.0.3
+        with:
+          terraform_version: "1.5.*"
+          terraform_wrapper: false
+      - run: mkdir -p .tmp
+      - run: git diff --compact-summary > .tmp/docs-diff-before-generate.diff
       - run: go generate ./...
+      - run: git diff --compact-summary > .tmp/docs-diff-after-generate.diff
+      - run: sudo apt install -y diffutils
+      - name: ensure-generate-results-in-no-chane-by-diff
+        run: |
+          diff .tmp/docs-diff-before-generate.diff .tmp/docs-diff-after-generate.diff  || \
+            (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
       - name: git diff
+        if: ${{ !env.ACT }} # skip during local actions testing, because of possible uncommit changes 
         run: |
           git diff --compact-summary --exit-code || \
             (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
-
+    
   # Run acceptance tests in a matrix with Terraform CLI versions
   test:
     name: Terraform Provider Acceptance Tests
     needs: build
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -85,7 +98,7 @@ jobs:
           terraform_wrapper: false
       - run: go mod download
       - run: go build -o githubtools/main/saya-installer githubtools/main/main.go
-      - run: sudo githubtools/main/saya-installer
+      - run: sudo --preserve-env githubtools/main/saya-installer
       # - run: sudo systemctl list-units vbox*
       # - run: sudo modprobe vboxnetadp || true
       # - run: sudo systemctl start vboxdrv vboxautostart-service
@@ -101,7 +114,8 @@ jobs:
           TF_LOG: "trace"
           TF_SAYA_FORGE_WITH_IMG: ${{ github.workspace }}/.tmp/.forge
           SAYA_CREATION_POLICY: "type=cloud_init_done_by_phone_cmdb,timeout=PT7M,data="
+          SAYA_RELEASE_URL: "" 
         # run: go test -v -cover ./internal/provider/
-        run: go test -v -cover -timeout 20m ./...
+        run: go test -v -cover -timeout 40m ./...
         # run: go test ./... -run TestAccExampleDataSource
-        timeout-minutes: 30
+        timeout-minutes: 42

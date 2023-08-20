@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tfsdklog"
 )
@@ -102,18 +101,6 @@ func (exeCtx *SayaExecutionCtx) S3Repo() *saya.S3Repo {
 	return exeCtx.repos.S3
 }
 
-// SayaProviderModel describes the provider data model.
-// @mind no LogLevel because terraform sets it throw environment variable so we are following the lead.
-type SayaProviderModel struct {
-	Exe        types.String `tfsdk:"exe"`
-	Config     types.String `tfsdk:"config"`
-	Forge      types.String `tfsdk:"forge"`
-	LicenseKey types.String `tfsdk:"license_key"`
-
-	HttpRepo types.Object `tfsdk:"http_repo"`
-	S3Repo   types.Object `tfsdk:"s3_repo"`
-}
-
 func (p *SayaProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "saya"
 	resp.Version = p.version
@@ -162,6 +149,7 @@ func (p *SayaProvider) Schema(ctx context.Context, req provider.SchemaRequest, r
 							"password": schema.StringAttribute{
 								Description: "the password",
 								Required:    true,
+								Sensitive:   true,
 							},
 						},
 						Optional: true,
@@ -200,10 +188,12 @@ func (p *SayaProvider) Schema(ctx context.Context, req provider.SchemaRequest, r
 							"secret_access_key": schema.StringAttribute{
 								Description: "aws secret access key",
 								Optional:    true,
+								Sensitive:   true,
 							},
 							"session_token": schema.StringAttribute{
 								Description: "the aws session token",
 								Optional:    true,
+								Sensitive:   true,
 							},
 							"source": schema.StringAttribute{
 								Description: "the source of the credential",
@@ -250,7 +240,7 @@ func (p *SayaProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 
 	// opts to avoid <<Received null value, however the target type cannot handle null values.>>
 	if !(data.HttpRepo.IsNull() || data.HttpRepo.IsUnknown()) {
-		httpRepoTf := &ImageResourceModelHttpRepo{}
+		httpRepoTf := &SayaProviderModelHttpRepo{}
 		diagsMapping := data.HttpRepo.As(ctx, httpRepoTf, basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true})
 		if diagsMapping.HasError() {
 			resp.Diagnostics.Append(diagsMapping...)
@@ -271,7 +261,7 @@ func (p *SayaProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 
 	// opts to avoid <<Received null value, however the target type cannot handle null values.>>
 	if !(data.S3Repo.IsNull() || data.S3Repo.IsUnknown()) {
-		s3RepoTf := &ImageResourceModelS3Repo{}
+		s3RepoTf := &SayaProviderModelS3Repo{}
 		diagsMapping := data.S3Repo.As(ctx, s3RepoTf, basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true})
 		if diagsMapping.HasError() {
 			resp.Diagnostics.Append(diagsMapping...)

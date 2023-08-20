@@ -36,7 +36,8 @@ func InstallSayaReleaseBin(releaseName string, binInstallDir string) error {
 	releaseUrl := ""
 
 	altReleaseUrl, avail := os.LookupEnv("SAYA_RELEASE_URL")
-	if avail {
+	log.Printf("InstallSayaReleaseBin -- alternative setting by environment: avail=%t, altReleaseUrl=%s", avail, altReleaseUrl)
+	if altReleaseUrl = strings.TrimSpace(altReleaseUrl); avail && altReleaseUrl != "" {
 		log.Printf("InstallSayaReleaseBin -- using saya release url setting from environment: altReleaseUrl=%s", altReleaseUrl)
 		releaseUrl = altReleaseUrl
 	} else {

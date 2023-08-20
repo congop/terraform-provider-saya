@@ -13,8 +13,25 @@ description: |-
 ## Example Usage
 
 ```terraform
-provider "scaffolding" {
-  # example configuration here
+provider "saya" {
+  version = "0.0.1"
+  exe     = "saya"
+  forge   = "/tmp/tempforge"
+
+  http_repo = {
+    url       = "http://localhost:10099"
+    base_path = ""
+  }
+
+  s3_repo = {
+    bucket   = "repos.example.com"
+    base_key = "public"
+    region   = "us-east-1"
+    credentials = {
+      access_key_id     = "xxxxxxxxxxxxxxxx"
+      secret_access_key = "XXXXXXXXXXXX"
+    }
+  }
 }
 ```
 
@@ -48,7 +65,7 @@ Optional:
 
 Required:
 
-- `password` (String) the password
+- `password` (String, Sensitive) the password
 - `username` (String) the username to authenticate with
 
 
@@ -76,6 +93,6 @@ Optional:
 - `access_key_id` (String) aws access id
 - `can_expire` (String) if the credential can expire
 - `expires` (String) the time the credential will expire
-- `secret_access_key` (String) aws secret access key
-- `session_token` (String) the aws session token
+- `secret_access_key` (String, Sensitive) aws secret access key
+- `session_token` (String, Sensitive) the aws session token
 - `source` (String) the source of the credential

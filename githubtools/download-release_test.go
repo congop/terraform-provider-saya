@@ -92,7 +92,7 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 				func(*http.Request) (*http.Response, error) {
 					return httpmock.NewBytesResponse(200, sayaReleaseZipStub(t)), nil
 				})
-
+			require.NoErrorf(t, os.Unsetenv("SAYA_RELEASE_URL"), "fail to unset environment variable SAYA_RELEASE_URL")
 			if tt.args.altReleaseUrl != nil {
 				httpmock.RegisterResponder(
 					"GET",
