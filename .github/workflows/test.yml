@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v3.6.0
       - uses: actions/setup-go@v4.1.0
         with:
           go-version-file: 'go.mod'
@@ -51,7 +51,7 @@ jobs:
   generate:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v3.6.0
       - uses: actions/setup-go@v4.1.0
         with:
           go-version-file: 'go.mod'
@@ -87,7 +87,7 @@ jobs:
         terraform:
           - '1.5.*'
     steps:
-      - uses: actions/checkout@v3.5.3 
+      - uses: actions/checkout@v3.6.0 
       - uses: actions/setup-go@v4.1.0 
         with:
           go-version-file: 'go.mod'
