@@ -88,7 +88,7 @@ func TestInstallSayaReleaseBin(t *testing.T) {
 				httpmock.NewBytesResponder(200, getTestReleaseResp(t)))
 			httpmock.RegisterResponder(
 				"GET",
-				"https://github.com/congop/saya-io/releases/download/saya-teaser-20230801T204622/saya-teaser-20230801T204622.zip",
+				"https://github.com/congop/saya-io/releases/download/saya_teaser-20231005T135240/saya_teaser-20231005T135240_linux_amd64.zip",
 				func(*http.Request) (*http.Response, error) {
 					return httpmock.NewBytesResponse(200, sayaReleaseZipStub(t)), nil
 				})
@@ -152,15 +152,15 @@ func sayaReleaseZipStub(t *testing.T) []byte {
 		Name, Body string
 	}{
 		{
-			Name: "saya-teaser-20230801T204622/bin/saya",
+			Name: "saya_teaser-20231005T135240_linux_amd64/bin/saya",
 			Body: fakeSayaExeFileContent,
 		},
 		{
-			Name: "saya-teaser-20230801T204622/saya-teaser-20230801T204622/THIRD-PARTY-NOTICES.txt",
+			Name: "saya_teaser-20231005T135240_linux_amd64/THIRD-PARTY-NOTICES/THIRD-PARTY-NOTICES.txt",
 			Body: "Saya uses the following opensource golang modules: \n ...",
 		},
 		{
-			Name: "LICENSE",
+			Name: "saya_teaser-20231005T135240_linux_amd64/LICENSE",
 			Body: "commercial.",
 		},
 	}

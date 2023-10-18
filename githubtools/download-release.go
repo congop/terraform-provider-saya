@@ -272,7 +272,27 @@ func getReleaseUrl(releaseName string) (string, error) {
 			"getReleaseUrl -- assets not found: availablename=%q",
 			maps.Keys(foundRelease))
 	}
-	asset := assets[0]
+
+	foundIndex := slices.IndexFunc[[]map[string]any](assets, func(asset map[string]any) bool {
+		switch name, avail, err := MapValue[string, string](asset, "name"); {
+		case err != nil:
+			return false
+		case !avail:
+			return false
+		case strings.HasSuffix(name, "linux_amd64.zip"):
+			return true
+		default:
+			return false
+		}
+
+	})
+	if foundIndex == -1 {
+		return "", errors.Wrapf(err,
+			"getReleaseUrl -- fail to find linux amd64 release asset: assets=%v",
+			assets)
+	}
+
+	asset := assets[foundIndex]
 	browserUrl, avail, err := MapValue[string, string](asset, "browser_download_url")
 	if err != nil {
 		return "", errors.Wrapf(err,
